@@ -194,29 +194,36 @@ const DraftEditorCompositionHandler = {
         .getBlockTree(blockKey)
         .getIn([decoratorKey, 'leaves', leafKey]);
 
-      const replacementRange = editorState.getSelection().merge({
-        anchorKey: blockKey,
-        focusKey: blockKey,
-        anchorOffset: start,
-        focusOffset: end,
-        isBackward: false,
-      });
+      const startBlock = contentState.getBlockForKey(blockKey);
+      const key = startBlock.getEntityAt(start);
+      if (start === 0 && key) {
+        const selection = editorState.getSelection().merge({ anchorOffset: 0, focusOffset: 0 });
+        contentState = DraftModifier.insertText(contentState, selection, composedChars);
+      } else {
+        const replacementRange = editorState.getSelection().merge({
+          anchorKey: blockKey,
+          focusKey: blockKey,
+          anchorOffset: start,
+          focusOffset: end,
+          isBackward: false,
+        });
 
-      const entityKey = getEntityKeyForSelection(
-        contentState,
-        replacementRange,
-      );
-      const currentStyle = contentState
-        .getBlockForKey(blockKey)
-        .getInlineStyleAt(start);
+        const entityKey = getEntityKeyForSelection(
+          contentState,
+          replacementRange,
+        );
+        const currentStyle = contentState
+          .getBlockForKey(blockKey)
+          .getInlineStyleAt(start);
 
-      contentState = DraftModifier.replaceText(
-        contentState,
-        replacementRange,
-        composedChars,
-        currentStyle,
-        entityKey,
-      );
+        contentState = DraftModifier.replaceText(
+          contentState,
+          replacementRange,
+          composedChars,
+          currentStyle,
+          entityKey,
+        );
+      }
       // We need to update the editorState so the leaf node ranges are properly
       // updated and multiple mutations are correctly applied.
       editorState = EditorState.set(editorState, {
