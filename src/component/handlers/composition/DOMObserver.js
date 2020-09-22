@@ -101,8 +101,13 @@ class DOMObserver {
   }
 
   registerMutations(mutations: Array<MutationRecord>): void {
-    for (let i = 0; i < mutations.length; i++) {
-      this.registerMutation(mutations[i]);
+    if (mutations.length > 0) {
+      let mutation = mutations[0];
+      mutations.forEach((m) => {
+        const textContent = this.getMutationTextContent(m);
+        if (textContent) mutation = m;
+      });
+      this.registerMutation(mutation);
     }
   }
 
@@ -144,8 +149,10 @@ class DOMObserver {
   registerMutation(mutation: MutationRecordT): void {
     const textContent = this.getMutationTextContent(mutation);
     if (textContent != null) {
-      const offsetKey = nullthrows(findAncestorOffsetKey(mutation.target));
-      this.mutations = this.mutations.set(offsetKey, textContent);
+      const offsetKey = findAncestorOffsetKey(mutation.target);
+      if (offsetKey != null) {
+        this.mutations = this.mutations.set(offsetKey, textContent);
+      }
     }
   }
 }
