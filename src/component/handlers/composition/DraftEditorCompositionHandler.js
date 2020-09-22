@@ -196,9 +196,13 @@ const DraftEditorCompositionHandler = {
 
       const startBlock = contentState.getBlockForKey(blockKey);
       const key = startBlock.getEntityAt(start);
-      if (start === 0 && key) {
+      const entity = key ? contentState.getEntityMap().__get(key) : null;
+      if (start === 0 && entity) {
+        const type = entity.getType();
+        let text = composedChars;
+        if (type === 'twemoji' || type === 'emoji') text = text.slice(0, start - end);
         const selection = editorState.getSelection().merge({ anchorOffset: 0, focusOffset: 0 });
-        contentState = DraftModifier.insertText(contentState, selection, composedChars);
+        contentState = DraftModifier.insertText(contentState, selection, text);
       } else {
         const replacementRange = editorState.getSelection().merge({
           anchorKey: blockKey,
