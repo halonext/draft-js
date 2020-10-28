@@ -338,17 +338,17 @@ class ContentBlocksBuilder {
   /**
    * Add an HTMLElement to the ContentBlocksBuilder
    */
-  addDOMNode(node: Node): ContentBlocksBuilder {
+  addDOMNode(node: Node, type): ContentBlocksBuilder {
     this.contentBlocks = [];
     this.currentDepth = 0;
     // Converts the HTML node to block config
-    this.blockConfigs.push(...this._toBlockConfigs([node], OrderedSet()));
+    this.blockConfigs.push(...this._toBlockConfigs([node], OrderedSet(), type));
 
     // There might be some left over text in the builder's
     // internal state, if so make a ContentBlock out of it.
     this._trimCurrentText();
     if (this.currentText !== '') {
-      this.blockConfigs.push(this._makeBlockConfig());
+      this.blockConfigs.push(this._makeBlockConfig({type}));
     }
 
     // for chaining
@@ -413,6 +413,7 @@ class ContentBlocksBuilder {
   _toBlockConfigs(
     nodes: Array<Node>,
     style: DraftInlineStyle,
+    type,
   ): Array<ContentBlockConfig> {
     const blockConfigs = [];
     for (let i = 0; i < nodes.length; i++) {
@@ -424,7 +425,7 @@ class ContentBlocksBuilder {
         // with the text accumulated so far (if any)
         this._trimCurrentText();
         if (this.currentText !== '') {
-          blockConfigs.push(this._makeBlockConfig());
+          blockConfigs.push(this._makeBlockConfig({type}));
         }
 
         // body, ol and ul nodes are ignored, but their children are inlined in
@@ -438,20 +439,21 @@ class ContentBlocksBuilder {
           }
         }
         blockConfigs.push(
-          ...this._toBlockConfigs(Array.from(node.childNodes), style),
+          ...this._toBlockConfigs(Array.from(node.childNodes), style, type),
         );
         this.currentDepth = wasCurrentDepth;
         this.wrapper = wasWrapper;
         continue;
       }
 
+      // TODO: flow of blockType in HTML was ignored
       let blockType = this.blockTypeMap.get(nodeName);
       if (blockType !== undefined) {
         // 'block' type node means we need to create a block config
         // with the text accumulated so far (if any)
         this._trimCurrentText();
         if (this.currentText !== '') {
-          blockConfigs.push(this._makeBlockConfig());
+          blockConfigs.push(this._makeBlockConfig({type}));
         }
 
         const wasCurrentDepth = this.currentDepth;
@@ -479,13 +481,14 @@ class ContentBlocksBuilder {
         const childConfigs = this._toBlockConfigs(
           Array.from(node.childNodes),
           style,
+          type,
         );
         this._trimCurrentText();
         blockConfigs.push(
           this._makeBlockConfig({
             key,
             childConfigs,
-            type: blockType,
+            type,
           }),
         );
 
@@ -524,7 +527,7 @@ class ContentBlocksBuilder {
         newStyle = newStyle.add(inlineStyle);
       }
       blockConfigs.push(
-        ...this._toBlockConfigs(Array.from(node.childNodes), newStyle),
+        ...this._toBlockConfigs(Array.from(node.childNodes), newStyle, type),
       );
     }
 
@@ -775,7 +778,8 @@ class ContentBlocksBuilder {
 const convertFromHTMLToContentBlocks = (
   html: string,
   DOMBuilder: Function = getSafeBodyFromHTML,
-  blockRenderMap?: DraftBlockRenderMap = DefaultDraftBlockRenderMap,
+  blockRenderMap: DraftBlockRenderMap = DefaultDraftBlockRenderMap,
+  type = 'unstyled',
 ): ?{
   contentBlocks: ?Array<BlockNodeRecord>,
   entityMap: EntityMap,
@@ -812,7 +816,7 @@ const convertFromHTMLToContentBlocks = (
   };
 
   return new ContentBlocksBuilder(blockTypeMap, disambiguate)
-    .addDOMNode(safeBody)
+    .addDOMNode(safeBody, type)
     .getContentBlocks();
 };
 
