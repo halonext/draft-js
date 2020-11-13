@@ -604,19 +604,23 @@ class ContentBlocksBuilder {
     if (!isHTMLImageElement(node)) {
       return;
     }
-
-    const image: HTMLImageElement = (node: any);
+    /*const image: HTMLImageElement = (node: any);
     const entityConfig = {};
-    imgAttr.forEach(attr => {
+     imgAttr.forEach(attr => {
       const imageAttribute = image.getAttribute(attr);
-
       if (imageAttribute) {
         entityConfig[attr] = imageAttribute;
       }
-    }); // TODO: T15530363 update this when we remove DraftEntity entirely
-
-    this.currentEntity = this.entityMap.__create('IMAGE', 'IMMUTABLE', entityConfig); // The child text node cannot just have a space or return as content (since
+    });
+     // TODO: T15530363 update this when we remove DraftEntity entirely
+    this.currentEntity = this.entityMap.__create(
+      'IMAGE',
+      'IMMUTABLE',
+      entityConfig,
+    );*/
+    // The child text node cannot just have a space or return as content (since
     // we strip those out)
+
 
     this._appendText('\ud83d\udcf7', style);
 
@@ -635,19 +639,23 @@ class ContentBlocksBuilder {
     if (!isHTMLAnchorElement(node)) {
       return;
     }
-
-    const anchor: HTMLAnchorElement = (node: any);
+    /*const anchor: HTMLAnchorElement = (node: any);
     const entityConfig = {};
-    anchorAttr.forEach(attr => {
+     anchorAttr.forEach(attr => {
       const anchorAttribute = anchor.getAttribute(attr);
-
       if (anchorAttribute) {
         entityConfig[attr] = anchorAttribute;
       }
     });
-    entityConfig.url = new URI(anchor.href).toString(); // TODO: T15530363 update this when we remove DraftEntity completely
+     entityConfig.url = new URI(anchor.href).toString();
+    // TODO: T15530363 update this when we remove DraftEntity completely
+    this.currentEntity = this.entityMap.__create(
+      'LINK',
+      'MUTABLE',
+      entityConfig || {},
+    );*/
 
-    this.currentEntity = this.entityMap.__create('LINK', 'MUTABLE', entityConfig || {});
+
     blockConfigs.push(...this._toBlockConfigs(Array.from(node.childNodes), style));
     this.currentEntity = null;
   }

@@ -614,7 +614,7 @@ class ContentBlocksBuilder {
     if (!isHTMLImageElement(node)) {
       return;
     }
-    const image: HTMLImageElement = (node: any);
+    /*const image: HTMLImageElement = (node: any);
     const entityConfig = {};
 
     imgAttr.forEach(attr => {
@@ -629,7 +629,7 @@ class ContentBlocksBuilder {
       'IMAGE',
       'IMMUTABLE',
       entityConfig,
-    );
+    );*/
 
     // The child text node cannot just have a space or return as content (since
     // we strip those out)
@@ -653,7 +653,7 @@ class ContentBlocksBuilder {
     if (!isHTMLAnchorElement(node)) {
       return;
     }
-    const anchor: HTMLAnchorElement = (node: any);
+    /*const anchor: HTMLAnchorElement = (node: any);
     const entityConfig = {};
 
     anchorAttr.forEach(attr => {
@@ -669,7 +669,7 @@ class ContentBlocksBuilder {
       'LINK',
       'MUTABLE',
       entityConfig || {},
-    );
+    );*/
 
     blockConfigs.push(
       ...this._toBlockConfigs(Array.from(node.childNodes), style),
