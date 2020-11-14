@@ -613,6 +613,7 @@ class ContentBlocksBuilder {
     if (!isHTMLImageElement(node)) {
       return;
     }
+    /*
     const image: HTMLImageElement = (node: any);
     const entityConfig = {};
 
@@ -629,7 +630,7 @@ class ContentBlocksBuilder {
       entityConfig,
     );
     this.currentEntity = this.contentState.getLastCreatedEntityKey();
-
+    */
     // The child text node cannot just have a space or return as content (since
     // we strip those out)
     this._appendText('\ud83d\udcf7', style);
@@ -652,6 +653,7 @@ class ContentBlocksBuilder {
     if (!isHTMLAnchorElement(node)) {
       return;
     }
+    /*
     const anchor: HTMLAnchorElement = (node: any);
     const entityConfig = {};
 
@@ -670,7 +672,7 @@ class ContentBlocksBuilder {
       entityConfig || {},
     );
     this.currentEntity = this.contentState.getLastCreatedEntityKey();
-
+    */
     blockConfigs.push(
       ...this._toBlockConfigs(Array.from(node.childNodes), style),
     );
