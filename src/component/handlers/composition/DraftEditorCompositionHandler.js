@@ -195,29 +195,44 @@ const DraftEditorCompositionHandler = {
         .getBlockTree(blockKey)
         .getIn([decoratorKey, 'leaves', leafKey]);
 
-      const replacementRange = editorState.getSelection().merge({
-        anchorKey: blockKey,
-        focusKey: blockKey,
-        anchorOffset: start,
-        focusOffset: end,
-        isBackward: false,
-      });
+      const startBlock = contentState.getBlockForKey(blockKey);
+      const key = startBlock.getEntityAt(start);
+      const entity = key ? contentState.getEntityMap().__get(key) : null;
+      if (start === 0 && entity) {
+        const type = entity.getType();
+        let text = composedChars;
+        if (type === 'twemoji' || type === 'emoji')
+          text = text.slice(0, start - end);
 
-      const entityKey = getEntityKeyForSelection(
-        contentState,
-        replacementRange,
-      );
-      const currentStyle = contentState
-        .getBlockForKey(blockKey)
-        .getInlineStyleAt(start);
+        const selection = editorState
+          .getSelection()
+          .merge({anchorOffset: 0, focusOffset: 0});
+        contentState = DraftModifier.insertText(contentState, selection, text);
+      } else {
+        const replacementRange = editorState.getSelection().merge({
+          anchorKey: blockKey,
+          focusKey: blockKey,
+          anchorOffset: start,
+          focusOffset: end,
+          isBackward: false,
+        });
 
-      contentState = DraftModifier.replaceText(
-        contentState,
-        replacementRange,
-        composedChars,
-        currentStyle,
-        entityKey,
-      );
+        const entityKey = getEntityKeyForSelection(
+          contentState,
+          replacementRange,
+        );
+        const currentStyle = contentState
+          .getBlockForKey(blockKey)
+          .getInlineStyleAt(start);
+
+        contentState = DraftModifier.replaceText(
+          contentState,
+          replacementRange,
+          composedChars,
+          currentStyle,
+          entityKey,
+        );
+      }
       // We need to update the editorState so the leaf node ranges are properly
       // updated and multiple mutations are correctly applied.
       editorState = EditorState.set(editorState, {
