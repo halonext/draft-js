@@ -81,6 +81,7 @@ const HTMLTagToRawInlineStyleMap: Map<string, string> = Map({
   u: 'UNDERLINE',
   mark: 'HIGHLIGHT',
 });
+const newLineRegexp = /^(h[1-6]|div|p|li|figure)$/g;
 
 type BlockTypeMap = Map<string, string | Array<string>>;
 
@@ -299,7 +300,7 @@ class ContentBlocksBuilder {
   wrapper: ?string = null;
 
   // Describes the future ContentState as a tree of content blocks
-  blockConfigs: Array<ContentBlockConfig> = [];
+  blockConfig: ContentBlockConfig = {};
 
   // The content blocks generated from the blockConfigs
   contentBlocks: Array<BlockNodeRecord> = [];
@@ -325,7 +326,7 @@ class ContentBlocksBuilder {
    */
   clear(): void {
     this.characterList = List();
-    this.blockConfigs = [];
+    this.blockConfig = {};
     this.currentBlockType = 'unstyled';
     this.currentDepth = 0;
     this.currentEntity = null;
@@ -342,14 +343,14 @@ class ContentBlocksBuilder {
     this.contentBlocks = [];
     this.currentDepth = 0;
     // Converts the HTML node to block config
-    this.blockConfigs.push(...this._toBlockConfigs([node], OrderedSet(), type));
+    this.blockConfig = this._toOneBlockConfigs([node], '', true);
 
     // There might be some left over text in the builder's
     // internal state, if so make a ContentBlock out of it.
-    this._trimCurrentText();
-    if (this.currentText !== '') {
-      this.blockConfigs.push(this._makeBlockConfig({type}));
-    }
+    // this._trimCurrentText();
+    // if (this.currentText !== '') {
+    //   this.blockConfig = this._makeBlockConfig({type});
+    // }
 
     // for chaining
     return this;
@@ -364,11 +365,11 @@ class ContentBlocksBuilder {
     entityMap: EntityMap,
     ...
   } {
-    if (this.contentBlocks.length === 0) {
+    if (this.blockConfig) {
       if (experimentalTreeDataSupport) {
-        this._toContentBlocks(this.blockConfigs);
+        this._toContentBlocks([this.blockConfig]);
       } else {
-        this._toFlatContentBlocks(this.blockConfigs);
+        this._toFlatContentBlocks([this.blockConfig]);
       }
     }
     return {
@@ -405,138 +406,91 @@ class ContentBlocksBuilder {
     return block;
   }
 
-  /**
-   * Converts an array of HTML elements to a multi-root tree of content
-   * block configs. Some text content may be left in the builders internal
-   * state to enable chaining sucessive calls.
-   */
-  _toBlockConfigs(
+  _toOneBlockConfigs(
     nodes: Array<Node>,
-    style: DraftInlineStyle,
-    type,
-  ): Array<ContentBlockConfig> {
-    const blockConfigs = [];
+    beforeChildren?: string,
+    result = false,
+  ) {
     for (let i = 0; i < nodes.length; i++) {
       const node = nodes[i];
       const nodeName = node.nodeName.toLowerCase();
-
-      if (nodeName === 'body' || isListNode(nodeName)) {
-        // body, ol and ul are 'block' type nodes so create a block config
-        // with the text accumulated so far (if any)
-        this._trimCurrentText();
-        if (this.currentText !== '') {
-          blockConfigs.push(this._makeBlockConfig({type}));
-        }
-
-        // body, ol and ul nodes are ignored, but their children are inlined in
-        // the parent block config.
-        const wasCurrentDepth = this.currentDepth;
-        const wasWrapper = this.wrapper;
-        if (isListNode(nodeName)) {
-          this.wrapper = nodeName;
-          if (isListNode(wasWrapper)) {
-            this.currentDepth++;
-          }
-        }
-        blockConfigs.push(
-          ...this._toBlockConfigs(Array.from(node.childNodes), style, type),
-        );
-        this.currentDepth = wasCurrentDepth;
-        this.wrapper = wasWrapper;
+      const childNodes = Array.from(node.childNodes);
+      // add newline before block node
+      if (newLineRegexp.test(nodeName)) this._appendText('\n');
+      // add blockquote symbol
+      if (beforeChildren) this._appendText(beforeChildren);
+      // block code
+      if (nodeName === 'pre' && childNodes.length) {
+        this._appendText('\n```\n');
+        this._toOneBlockConfigs(childNodes);
+        this._appendText('\n```\n');
         continue;
       }
-
-      let blockType = this.blockTypeMap.get(nodeName);
-      if (blockType !== undefined) {
-        // 'block' type node means we need to create a block config
-        // with the text accumulated so far (if any)
-        this._trimCurrentText();
-        if (this.currentText !== '') {
-          blockConfigs.push(this._makeBlockConfig({type}));
-        }
-
-        const wasCurrentDepth = this.currentDepth;
-        const wasWrapper = this.wrapper;
-        this.wrapper = nodeName === 'pre' ? 'pre' : this.wrapper;
-
-        if (typeof blockType !== 'string') {
-          blockType =
-            this.disambiguate(nodeName, this.wrapper) ||
-            blockType[0] ||
-            'unstyled';
-        }
-
-        if (
-          !experimentalTreeDataSupport &&
-          isHTMLElement(node) &&
-          (blockType === 'unordered-list-item' ||
-            blockType === 'ordered-list-item')
-        ) {
-          const htmlElement: HTMLElement = (node: any);
-          this.currentDepth = getListItemDepth(htmlElement, this.currentDepth);
-        }
-
-        const key = generateRandomKey();
-        const childConfigs = this._toBlockConfigs(
-          Array.from(node.childNodes),
-          style,
-          type,
-        );
-        this._trimCurrentText();
-        blockConfigs.push(
-          this._makeBlockConfig({
-            key,
-            childConfigs,
-            type,
-          }),
-        );
-
-        this.currentDepth = wasCurrentDepth;
-        this.wrapper = wasWrapper;
+      // blockquote
+      if (nodeName === 'blockquote' && childNodes.length) {
+        this._toOneBlockConfigs(node.childNodes, '\n> ');
         continue;
       }
-
-      if (nodeName === '#text') {
-        this._addTextNode(node, style);
+      // all wrapper
+      if (childNodes.length || nodeName === 'body' || isListNode(nodeName)) {
+        if (nodeName === 'strong') this._appendText('*');
+        if (nodeName === 'i') this._appendText('**');
+        this._toOneBlockConfigs(childNodes);
+        if (nodeName === 'strong') this._appendText('*');
+        if (nodeName === 'i') this._appendText('**');
         continue;
       }
-
+      if (nodeName === 'strong') {
+        this._appendText('*');
+        this._addTextNode(node);
+        this._appendText('*');
+        continue;
+      }
+      if (nodeName === 'i') {
+        this._appendText('**');
+        this._addTextNode(node);
+        this._appendText('**');
+        continue;
+      }
+      // text
+      if (nodeName === '#text' || nodeName === 'span') {
+        this._addTextNode(node);
+        continue;
+      }
+      // br
       if (nodeName === 'br') {
-        this._addBreakNode(node, style);
+        this._addBreakNode(node);
         continue;
       }
-
+      if (nodeName === 'bold') {
+        this._appendText('*');
+        this._addTextNode(node);
+        this._appendText('*');
+        continue;
+      }
+      if (nodeName === 'italic') {
+        this._appendText('**');
+        this._addTextNode(node);
+        this._appendText('**');
+        continue;
+      }
+      // image
       if (isValidImage(node)) {
-        this._addImgNode(node, style);
+        this._addImgNode(node);
         continue;
       }
-
+      // no need anchor anymore
       if (isValidAnchor(node)) {
-        this._addAnchorNode(node, blockConfigs, style);
-        continue;
+        this._toOneBlockConfigs(Array.from(node.childNodes));
       }
-
-      let newStyle = style;
-      if (HTMLTagToRawInlineStyleMap.has(nodeName)) {
-        newStyle = newStyle.add(HTMLTagToRawInlineStyleMap.get(nodeName));
-      }
-      newStyle = styleFromNodeAttributes(node, newStyle);
-      const inlineStyle = detectInlineStyle(node);
-      if (inlineStyle != null) {
-        newStyle = newStyle.add(inlineStyle);
-      }
-      blockConfigs.push(
-        ...this._toBlockConfigs(Array.from(node.childNodes), newStyle, type),
-      );
     }
-
-    return blockConfigs;
+    if (result) return this._makeBlockConfig();
   }
 
   /**
    * Append a string of text to the internal buffer.
    */
-  _appendText(text: string, style: DraftInlineStyle) {
+  _appendText(text: string, style = OrderedSet()) {
     this.currentText += text;
     const characterMetadata = CharacterMetadata.create({
       style,
@@ -579,30 +533,11 @@ class ContentBlocksBuilder {
    * Add the content of an HTML text node to the internal state
    */
   _addTextNode(node: Node, style: DraftInlineStyle) {
-    let text = node.textContent;
-    const trimmedText = text.trim();
-
-    // If we are not in a pre block and the trimmed content is empty,
-    // normalize to a single space.
-    if (trimmedText === '' && this.wrapper !== 'pre') {
-      text = ' ';
-    }
-
-    if (this.wrapper !== 'pre') {
-      // Trim leading line feed, which is invisible in HTML
-      text = text.replace(REGEX_LEADING_LF, '');
-
-      // Can't use empty string because MSWord
-      text = text.replace(REGEX_LF, SPACE);
-    }
-
-    this._appendText(text, style);
+    this._appendText(node.textContent || '', style);
   }
 
   _addBreakNode(node: Node, style: DraftInlineStyle) {
-    if (!isHTMLBRElement(node)) {
-      return;
-    }
+    if (!isHTMLBRElement(node)) return;
     this._appendText('\n', style);
   }
 
@@ -610,73 +545,8 @@ class ContentBlocksBuilder {
    * Add the content of an HTML img node to the internal state
    */
   _addImgNode(node: Node, style: DraftInlineStyle) {
-    if (!isHTMLImageElement(node)) {
-      return;
-    }
-    /*
-    const image: HTMLImageElement = (node: any);
-    const entityConfig = {};
-
-    imgAttr.forEach(attr => {
-      const imageAttribute = image.getAttribute(attr);
-      if (imageAttribute) {
-        entityConfig[attr] = imageAttribute;
-      }
-    });
-
-    this.contentState = this.contentState.createEntity(
-      'IMAGE',
-      'IMMUTABLE',
-      entityConfig,
-    );
-    this.currentEntity = this.contentState.getLastCreatedEntityKey();
-    */
-    // The child text node cannot just have a space or return as content (since
-    // we strip those out)
+    if (!isHTMLImageElement(node)) return;
     this._appendText('\ud83d\udcf7', style);
-
-    this.currentEntity = null;
-  }
-
-  /**
-   * Add the content of an HTML 'a' node to the internal state. Child nodes
-   * (if any) are converted to Block Configs and appended to the provided
-   * blockConfig array.
-   */
-  _addAnchorNode(
-    node: Node,
-    blockConfigs: Array<ContentBlockConfig>,
-    style: DraftInlineStyle,
-  ) {
-    // The check has already been made by isValidAnchor but
-    // we have to do it again to keep flow happy.
-    if (!isHTMLAnchorElement(node)) {
-      return;
-    }
-    /*
-    const anchor: HTMLAnchorElement = (node: any);
-    const entityConfig = {};
-
-    anchorAttr.forEach(attr => {
-      const anchorAttribute = anchor.getAttribute(attr);
-      if (anchorAttribute) {
-        entityConfig[attr] = anchorAttribute;
-      }
-    });
-
-    entityConfig.url = new URI(anchor.href).toString();
-
-    this.contentState = this.contentState.createEntity(
-      'LINK',
-      'MUTABLE',
-      entityConfig || {},
-    );
-    this.currentEntity = this.contentState.getLastCreatedEntityKey();
-    */
-    blockConfigs.push(
-      ...this._toBlockConfigs(Array.from(node.childNodes), style),
-    );
-    this.currentEntity = null;
   }
 
   /**
