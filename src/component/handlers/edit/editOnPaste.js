@@ -164,13 +164,9 @@ function editOnPaste(editor: DraftEditor, e: SyntheticClipboardEvent<>): void {
 
     // If there is html paste data, try to parse that.
     if (html) {
-      const currentBlockType = RichTextEditorUtil.getCurrentBlockType(
-        editorState,
-      );
       const htmlFragment = DraftPasteProcessor.processHTML(
         html,
         editor.props.blockRenderMap,
-        currentBlockType,
       );
       if (htmlFragment) {
         const {contentBlocks, entityMap} = htmlFragment;

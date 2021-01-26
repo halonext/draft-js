@@ -82,6 +82,8 @@ const HTMLTagToRawInlineStyleMap: Map<string, string> = Map({
   mark: 'HIGHLIGHT',
 });
 const newLineRegexp = /^(h[1-6]|div|p|li|figure)$/g;
+const bold = ['strong', 'b', 'bold'];
+const italic = ['em', 'i', 'italic'];
 
 type BlockTypeMap = Map<string, string | Array<string>>;
 
@@ -339,7 +341,7 @@ class ContentBlocksBuilder {
   /**
    * Add an HTMLElement to the ContentBlocksBuilder
    */
-  addDOMNode(node: Node, type): ContentBlocksBuilder {
+  addDOMNode(node: Node): ContentBlocksBuilder {
     this.contentBlocks = [];
     this.currentDepth = 0;
     // Converts the HTML node to block config
@@ -421,7 +423,7 @@ class ContentBlocksBuilder {
       if (beforeChildren) this._appendText(beforeChildren);
       // block code
       if (nodeName === 'pre' && childNodes.length) {
-        this._appendText('\n```\n');
+        this._appendText('```\n');
         this._toOneBlockConfigs(childNodes);
         this._appendText('\n```\n');
         continue;
@@ -433,23 +435,23 @@ class ContentBlocksBuilder {
       }
       // all wrapper
       if (childNodes.length || nodeName === 'body' || isListNode(nodeName)) {
-        if (nodeName === 'strong') this._appendText('*');
-        if (nodeName === 'i') this._appendText('**');
+        if (bold.includes(nodeName)) this._appendText('**');
+        if (italic.includes(nodeName)) this._appendText('*');
         this._toOneBlockConfigs(childNodes);
-        if (nodeName === 'strong') this._appendText('*');
-        if (nodeName === 'i') this._appendText('**');
+        if (bold.includes(nodeName)) this._appendText('**');
+        if (italic.includes(nodeName)) this._appendText('*');
         continue;
       }
-      if (nodeName === 'strong') {
-        this._appendText('*');
-        this._addTextNode(node);
-        this._appendText('*');
-        continue;
-      }
-      if (nodeName === 'i') {
+      if (bold.includes(nodeName)) {
         this._appendText('**');
         this._addTextNode(node);
         this._appendText('**');
+        continue;
+      }
+      if (italic.includes(nodeName)) {
+        this._appendText('*');
+        this._addTextNode(node);
+        this._appendText('*');
         continue;
       }
       // text
@@ -460,18 +462,6 @@ class ContentBlocksBuilder {
       // br
       if (nodeName === 'br') {
         this._addBreakNode(node);
-        continue;
-      }
-      if (nodeName === 'bold') {
-        this._appendText('*');
-        this._addTextNode(node);
-        this._appendText('*');
-        continue;
-      }
-      if (nodeName === 'italic') {
-        this._appendText('**');
-        this._addTextNode(node);
-        this._appendText('**');
         continue;
       }
       // image
@@ -651,7 +641,6 @@ const convertFromHTMLToContentBlocks = (
   html: string,
   DOMBuilder: Function = getSafeBodyFromHTML,
   blockRenderMap: DraftBlockRenderMap = DefaultDraftBlockRenderMap,
-  type = 'unstyled',
 ): ?{
   contentBlocks: ?Array<BlockNodeRecord>,
   entityMap: EntityMap,
@@ -688,7 +677,7 @@ const convertFromHTMLToContentBlocks = (
   };
 
   return new ContentBlocksBuilder(blockTypeMap, disambiguate)
-    .addDOMNode(safeBody, type)
+    .addDOMNode(safeBody)
     .getContentBlocks();
 };
 
