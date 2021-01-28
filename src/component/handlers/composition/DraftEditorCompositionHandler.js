@@ -199,10 +199,7 @@ const DraftEditorCompositionHandler = {
       const key = startBlock.getEntityAt(start);
       const entity = key ? contentState.getEntityMap().__get(key) : null;
       if (start === 0 && entity) {
-        const type = entity.getType();
         let text = composedChars;
-        if (type === 'twemoji' || type === 'emoji')
-          text = text.slice(0, start - end);
 
         const selection = editorState
           .getSelection()
