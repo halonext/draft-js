@@ -138,8 +138,7 @@ function editOnPaste(editor: DraftEditor, e: SyntheticClipboardEvent<>): void {
 
 
     if (html) {
-      const currentBlockType = RichTextEditorUtil.getCurrentBlockType(editorState);
-      const htmlFragment = DraftPasteProcessor.processHTML(html, editor.props.blockRenderMap, currentBlockType);
+      const htmlFragment = DraftPasteProcessor.processHTML(html, editor.props.blockRenderMap);
 
       if (htmlFragment) {
         const {
