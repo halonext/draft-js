@@ -417,6 +417,12 @@ class ContentBlocksBuilder {
       const node = nodes[i];
       const nodeName = node.nodeName.toLowerCase();
       const childNodes = Array.from(node.childNodes);
+      if (nodeName === 'style') continue;
+      if (nodeName === 'td' || nodeName === 'th') {
+        this._toOneBlockConfigs(childNodes);
+        this._appendText(' ');
+        continue;
+      }
       // add newline before block node
       if (newLineRegexp.test(nodeName)) this._appendText('\n');
       // add blockquote symbol
